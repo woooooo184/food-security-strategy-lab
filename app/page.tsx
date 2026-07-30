@@ -10,66 +10,136 @@ const careers = [
     role: "조달국 다변화와 환율·해상운임 위험을 관리하는 공급망 전략가",
     question: "호주 가뭄이 발생했을 때 어느 국가와 어떤 계약을 추가할 것인가?",
     output: "수입국 포트폴리오와 환율 헤지 전략",
+    tool: "공급망 지도 · HHI · 환율 시나리오",
+    project: "호주 의존도 51.8%를 낮추는 3개국 조달 포트폴리오 설계",
+    keyword: "글로벌 공급망 · 무역 · 리스크 관리",
   },
   {
     name: "경영학",
     role: "국산 밀의 원가·재고·브랜드 가치를 함께 설계하는 식품기업 기획자",
     question: "비싼 국산 밀을 소비자가 선택하도록 어떤 상품과 가격을 설계할까?",
     output: "계약재배 기반 국산 밀 제품 사업모델",
+    tool: "원가구조 · 재고회전 · 가격탄력성",
+    project: "국산 밀 계약재배 제품의 손익분기점과 브랜드 전략 비교",
+    keyword: "기업전략 · 마케팅 · ESG 경영",
   },
   {
     name: "식품자원경제학",
     role: "자급률·농가소득·정책비용을 계량적으로 비교하는 농업경제 분석가",
     question: "직불금 1원은 자급률과 농가소득을 얼마나 높이는가?",
     output: "전략작물직불제 비용–편익 평가",
+    tool: "자급률 · 사회적 편익 · 비용–편익 분석",
+    project: "전략작물직불금의 자급 기반·농가소득 효과를 평가하는 지표 설계",
+    keyword: "농업경제 · 정책평가 · 자원배분",
   },
   {
     name: "농경제사회학",
     role: "고령화·지역공동체·정책 형평성을 살피는 농촌사회 연구자",
     question: "생산 확대의 이익과 부담은 농가·지역·소비자에게 공정한가?",
     output: "지역별 참여 격차와 지속가능성 조사",
+    tool: "이해관계자 지도 · 정책 형평성 · 지역조사",
+    project: "고령농·청년농의 정책 참여 격차와 농촌공동체 영향 인터뷰",
+    keyword: "농촌사회 · 지역개발 · 정책 형평성",
   },
 ];
 
-const shocks = {
-  drought: { label: "호주 가뭄", price: 18, supply: 22, climate: 12, note: "주요 조달국 생산 감소 → 국제가격·대체 조달 경쟁 상승" },
-  fx: { label: "원/달러 환율 상승", price: 24, supply: 9, climate: 2, note: "같은 달러 가격이어도 원화 수입단가가 즉시 상승" },
-  shipping: { label: "해상운송 차질", price: 17, supply: 25, climate: 6, note: "항로 우회·운임 상승 → 도착 지연과 재고 압박" },
-  typhoon: { label: "국내 태풍", price: 9, supply: 13, climate: 20, note: "쌀 생산 기반 피해 → 국내 수급 안정성 약화" },
-} as const;
+type Metrics = { price: number; supply: number; farm: number; climate: number };
 
-type ShockKey = keyof typeof shocks;
+const crisisCards: Array<{id:string; tag:string; label:string; note:string; impact:Metrics}> = [
+  { id:"drought", tag:"기후·생산", label:"호주 2년 연속 가뭄", note:"주요 밀 산지의 수확량 감소로 국제가격과 대체 조달 경쟁이 동시에 상승합니다.", impact:{price:-20,supply:-24,farm:-3,climate:-8} },
+  { id:"fx", tag:"금융·무역", label:"원/달러 환율 15% 상승", note:"달러 표시 가격이 같아도 원화 수입단가와 식품기업의 원가 부담이 커집니다.", impact:{price:-25,supply:-8,farm:-2,climate:0} },
+  { id:"shipping", tag:"물류·지정학", label:"핵심 해상항로 6주 차질", note:"운임 상승과 도착 지연이 재고를 압박하고 긴급 대체 조달 비용을 높입니다.", impact:{price:-17,supply:-27,farm:-2,climate:-5} },
+  { id:"typhoon", tag:"기후·국내기반", label:"국내 벼 주산지 태풍", note:"쌀 생산 기반이 손상되어 높은 자급률만으로는 설명되지 않는 국내 기후위험이 드러납니다.", impact:{price:-10,supply:-18,farm:-14,climate:-12} },
+];
+
+const policyCards: Array<{id:string; type:string; title:string; cost:number; detail:string; downside:string; effects:Metrics; hhi:number}> = [
+  {id:"reserve",type:"단기 안정",title:"공공비축 방출",cost:3,detail:"재고를 조기에 방출해 도착 지연과 가격 급등을 완충합니다.",downside:"보관비와 재고 노후화 부담",effects:{price:16,supply:13,farm:-3,climate:-3},hhi:0},
+  {id:"diversify",type:"글로벌 조달",title:"수입국 다변화",cost:3,detail:"공급계약을 여러 기후권으로 분산해 동시 실패 확률을 낮춥니다.",downside:"단기 계약단가·품질관리 비용 상승",effects:{price:7,supply:19,farm:0,climate:1},hhi:-700},
+  {id:"hedge",type:"금융 전략",title:"환율 헤지",cost:2,detail:"선물환 계약으로 원화 수입원가의 변동폭을 제한합니다.",downside:"환율 하락 시 헤지 비용 발생",effects:{price:17,supply:2,farm:0,climate:0},hhi:0},
+  {id:"contract",type:"국내 기반",title:"국산 밀 계약재배",cost:3,detail:"기업과 농가의 사전계약으로 판로와 생산량을 함께 안정시킵니다.",downside:"단기 소비자가격·재정 부담",effects:{price:-4,supply:13,farm:21,climate:5},hhi:-120},
+  {id:"smart",type:"기후 적응",title:"기후스마트 재배",cost:3,detail:"내재해 품종·정밀관수·생육예측으로 기후변동에 대한 생산 회복력을 높입니다.",downside:"초기 투자와 데이터 격차",effects:{price:1,supply:11,farm:8,climate:20},hhi:0},
+  {id:"demand",type:"시장 형성",title:"국산 밀 수요계약",cost:2,detail:"학교급식·식품기업 장기구매로 생산 확대가 재고로 남는 위험을 줄입니다.",downside:"수요 예측 실패 시 재고 위험",effects:{price:-3,supply:7,farm:15,climate:5},hhi:0},
+  {id:"logistics",type:"물류 전략",title:"항만·물류 이중화",cost:2,detail:"대체 항만과 안전재고 거점을 확보해 운송 중단 시간을 단축합니다.",downside:"중복 인프라의 고정비",effects:{price:7,supply:15,farm:0,climate:-2},hhi:-80},
+  {id:"insurance",type:"지역 회복",title:"기후보험·공동영농",cost:2,detail:"재해손실을 분산하고 공동기계화로 고령농의 생산 지속성을 보완합니다.",downside:"보험료와 도덕적 해이 관리",effects:{price:0,supply:5,farm:18,climate:9},hhi:0},
+];
+
+const gameRoles = [
+  {name:"글로벌 공급망 책임자",major:"글로벌경영",mission:"공급 회복력 70 이상 + HHI 3,000 미만",check:(m:Metrics,hhi:number)=>m.supply>=70&&hhi<3000,follow:"기후권이 다른 국가를 묶은 밀 조달 포트폴리오와 환율 헤지안을 작성한다."},
+  {name:"식품기업 전략기획자",major:"경영학",mission:"가격 안정성 70 이상 + 국내 가치사슬 카드 포함",check:(m:Metrics,_hhi:number,ids:string[])=>m.price>=70&&(ids.includes("contract")||ids.includes("demand")),follow:"국산 밀 제품의 원가·판매가격·브랜드 프리미엄을 비교한 사업모델을 만든다."},
+  {name:"농업경제 정책분석가",major:"식품자원경제학",mission:"네 KPI 모두 58 이상 + 대응비용 7 이하",check:(m:Metrics,_hhi:number,_ids:string[],cost:number)=>Object.values(m).every(v=>v>=58)&&cost<=7,follow:"선택 정책의 비용 1단위당 KPI 개선폭을 계산해 비용–효과성을 평가한다."},
+  {name:"농촌 전환 설계자",major:"농경제사회학",mission:"농가소득 70 이상 + 환경 지속성 65 이상",check:(m:Metrics)=>m.farm>=70&&m.climate>=65,follow:"고령농·청년농·소비자에게 정책 편익과 부담이 어떻게 배분되는지 조사한다."},
+];
 
 export default function Home() {
   const [career, setCareer] = useState(0);
-  const [shock, setShock] = useState<ShockKey>("drought");
-  const [budget, setBudget] = useState({ direct: 20, reserve: 20, diversity: 20, smart: 20, demand: 20 });
-  const total = Object.values(budget).reduce((a, b) => a + b, 0);
-  const scores = useMemo(() => {
-    const s = shocks[shock];
+  const [gameRole, setGameRole] = useState(0);
+  const [crisis, setCrisis] = useState<(typeof crisisCards)[number] | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [resolved, setResolved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const selectedCards = policyCards.filter(card => selected.includes(card.id));
+  const usedCapacity = selectedCards.reduce((sum, card) => sum + card.cost, 0);
+  const synergy = selected.includes("diversify") && selected.includes("hedge")
+    ? {name:"글로벌 리스크 헤지",effects:{price:8,supply:5,farm:0,climate:0}}
+    : selected.includes("contract") && selected.includes("demand")
+      ? {name:"국산 밀 가치사슬",effects:{price:0,supply:8,farm:12,climate:4}}
+      : selected.includes("smart") && selected.includes("insurance")
+        ? {name:"기후 적응 패키지",effects:{price:0,supply:5,farm:8,climate:9}}
+        : selected.includes("reserve") && selected.includes("logistics")
+          ? {name:"재고–물류 연계",effects:{price:5,supply:9,farm:0,climate:-1}}
+          : null;
+  const scores = useMemo<Metrics>(() => {
+    const base: Metrics = {price:62,supply:58,farm:54,climate:55};
+    const impact = crisis?.impact ?? {price:0,supply:0,farm:0,climate:0};
+    const policy = selectedCards.reduce<Metrics>((acc,card)=>({
+      price:acc.price+card.effects.price,
+      supply:acc.supply+card.effects.supply,
+      farm:acc.farm+card.effects.farm,
+      climate:acc.climate+card.effects.climate,
+    }),{price:0,supply:0,farm:0,climate:0});
+    const bonus = synergy?.effects ?? {price:0,supply:0,farm:0,climate:0};
     return {
-      price: clamp(55 + budget.reserve * .55 + budget.diversity * .45 - s.price),
-      supply: clamp(47 + budget.reserve * .45 + budget.diversity * .7 + budget.direct * .25 - s.supply),
-      farm: clamp(38 + budget.direct * .85 + budget.smart * .35 + budget.demand * .25),
-      climate: clamp(42 + budget.smart * .65 + budget.demand * .25 - s.climate),
+      price:clamp(base.price+impact.price+policy.price+bonus.price),
+      supply:clamp(base.supply+impact.supply+policy.supply+bonus.supply),
+      farm:clamp(base.farm+impact.farm+policy.farm+bonus.farm),
+      climate:clamp(base.climate+impact.climate+policy.climate+bonus.climate),
     };
-  }, [budget, shock]);
+  }, [crisis, selected, synergy?.name]);
+  const hhi = Math.max(0, 3555 + selectedCards.reduce((sum,card)=>sum+card.hhi,0));
+  const missionPassed = resolved && gameRoles[gameRole].check(scores,hhi,selected,usedCapacity);
+  const reportText = crisis ? `${gameRoles[gameRole].major} 관점에서 ${crisis.label}에 대응하였다. ${selectedCards.map(c=>c.title).join(", ")}을 선택해 가격 안정성 ${scores.price}, 공급 회복력 ${scores.supply}, 농가소득 ${scores.farm}, 환경 지속성 ${scores.climate}를 비교하고, 수입집중도 HHI ${hhi}와 ${synergy ? `${synergy.name} 시너지` : "정책 간 상충관계"}를 분석하였다.` : "";
 
-  const updateBudget = (key: keyof typeof budget, value: number) =>
-    setBudget((prev) => ({ ...prev, [key]: value }));
+  const drawCrisis = () => {
+    const next = crisisCards[Math.floor(Math.random()*crisisCards.length)];
+    setCrisis(next);
+    setSelected([]);
+    setResolved(false);
+    setCopied(false);
+  };
+  const togglePolicy = (id:string) => {
+    setResolved(false);
+    setCopied(false);
+    setSelected(current => {
+      if (current.includes(id)) return current.filter(item=>item!==id);
+      const card = policyCards.find(item=>item.id===id)!;
+      const currentCost = policyCards.filter(item=>current.includes(item.id)).reduce((sum,item)=>sum+item.cost,0);
+      if (current.length>=3 || currentCost+card.cost>8) return current;
+      return [...current,id];
+    });
+  };
 
   return (
     <main>
       <nav className="nav">
         <a className="brand" href="#top"><span>FS</span> 식량안보 전략 연구소</a>
-        <div className="navlinks"><a href="#evidence">근거</a><a href="#day3">3일차</a><a href="#lab">시뮬레이터</a><a href="#career">진로</a></div>
+        <div className="navlinks"><a href="#evidence">근거</a><a href="#climate">기후위기</a><a href="#lab">전략게임</a><a href="#career">진로</a></div>
       </nav>
 
       <section className="hero" id="top">
         <div className="eyebrow">기후변화와 지속 가능한 진로 × 경제·경영</div>
         <h1>밀 2%의 경고,<br/><em>쌀 99.1%의 기반</em></h1>
         <p className="lead">우리 식량은 어디에서 오고, 국제 충격은 식탁까지 얼마나 걸릴까? 쌀과 밀의 대조를 통해 기후위기 시대의 공급망과 지속 가능한 진로를 탐구합니다.</p>
-        <div className="actions"><a className="primary" href="#day3">3일차 탐구 시작</a><a className="secondary" href="#lab">정책 실험하기 →</a></div>
+        <div className="actions"><a className="primary" href="#climate">기후위기 탐구 시작</a><a className="secondary" href="#lab">전략게임 시작 →</a></div>
         <div className="hero-note">핵심 질문 · 쌀의 자급 기반을 지키면서 밀의 수입 의존도를 경제적·환경적으로 지속 가능한 방식으로 낮출 수 있을까?</div>
       </section>
 
@@ -88,20 +158,20 @@ export default function Home() {
         <p className="caveat">주의: 수입량은 사료·가공용 포함 여부에 따라 달라집니다. 따라서 ‘전체 수입량’과 ‘식량자급률’을 같은 수급식으로 직접 나누지 않았습니다.</p>
       </section>
 
-      <section className="dark section" id="day3">
-        <div className="section-head"><span>02 / 3일차 심화 탐구</span><h2>우리 식량은 어디에서 오는가?</h2><p>자료 읽기에서 끝내지 않고, 국제 충격이 국내 가격과 소비에 전달되는 경로까지 추적합니다.</p></div>
+      <section className="dark section" id="climate">
+        <div className="section-head"><span>02 / 기후변화와 곡물경제</span><h2>기후 충격은 생산지가 아니라 공급망 전체를 흔든다</h2><p>쌀은 국내 기후위험에, 밀은 해외 산지·환율·운송이 결합된 복합위험에 노출됩니다. 두 곡물을 비교해 기후위기가 경제 문제로 전환되는 경로를 추적합니다.</p></div>
         <div className="origin">
           <div className="rice-card"><span>RICE · 국내 기반</span><h3>쌀</h3><strong>국내 생산 376.4만t</strong><p>높은 자급률은 강점이지만, 태풍·폭염·농가 고령화와 경지 감소가 생산 기반을 흔들 수 있습니다.</p></div>
           <div className="wheat-card"><span>WHEAT · 글로벌 공급망</span><h3>밀</h3><div className="stack"><i style={{width:"51.8%"}}>호주 51.8</i><i style={{width:"26.2%"}}>미국 26.2</i><i style={{width:"10.1%"}}>EU 10.1</i><i>기타</i></div><p>2023년 관세청 수입 중량 기준. 두 국가 집중도 78%는 특정 지역 충격에 민감한 구조를 뜻합니다.</p></div>
         </div>
-        <div className="missions">
+        <div className="missions climate-missions">
           {[
-            ["① 데이터 판독","쌀·밀 생산량, 식량용 수요, 자급률의 정의와 연도를 표로 정리한다."],
-            ["② 공급망 지도","밀 수입국 비중을 계산하고 상위 2개국 집중도(78%)의 위험을 해석한다."],
-            ["③ 충격 선택","가뭄·전쟁/항만 차질·환율 상승 중 하나를 골라 원인과 1차 영향을 조사한다."],
-            ["④ 시간 경로","선물·환율 → 수입단가 → 제분·식품기업 → 소비자가격의 시차를 설명한다."],
-            ["⑤ 정책 비교","직불제·비축·수입 다변화·스마트농업을 비용, 효과, 형평성으로 평가한다."],
-            ["⑥ 진로 결론","내 전공 관점에서 실행 주체, KPI, 예상 부작용을 포함한 전략을 제안한다."],
+            ["① 생산위험","폭염·가뭄·집중호우가 수확량과 품질의 변동성을 어떻게 키우는지 비교한다."],
+            ["② 집중위험","밀 수입 상위 2개국 비중 78%와 HHI 약 3,555가 의미하는 조달 취약성을 해석한다."],
+            ["③ 가격전이","기후 충격이 선물가격·환율·운임·기업 원가를 거쳐 식탁까지 이동하는 시차를 분석한다."],
+            ["④ 전환비용","국내 생산 확대가 토지·물·에너지·재정에 만드는 비용과 편익을 함께 계산한다."],
+            ["⑤ 공정한 적응","저소득 소비자, 고령농, 청년농에게 기후위험과 정책 혜택이 어떻게 배분되는지 묻는다."],
+            ["⑥ 지속가능 진로","공급망·기업전략·정책평가·농촌사회 중 내 진로의 분석도구로 해결안을 설계한다."],
           ].map(([h,p])=><article key={h}><b>{h}</b><p>{p}</p></article>)}
         </div>
       </section>
@@ -118,41 +188,96 @@ export default function Home() {
       </section>
 
       <section className="story section" id="story">
-        <div className="section-head"><span>04 / 게임을 만든 경로</span><h2>자료가 ‘선택의 서사’가 되는 과정</h2><p>숫자를 외우는 과제가 아니라, 실제 정책 담당자가 겪는 제한된 예산과 상충관계를 체험하도록 설계했습니다.</p></div>
+        <div className="section-head"><span>04 / 게임 설계 논리</span><h2>기후자료가 ‘전략적 선택’이 되는 과정</h2><p>합계를 맞추는 활동이 아니라, 전공별 역할을 맡아 불완전한 정보와 상충하는 KPI 속에서 의사결정을 내리도록 설계했습니다.</p></div>
         <div className="story-route">
           {[
             ["발견","쌀 99.1%와 밀 2.0%의 격차를 보고 “왜 같은 곡물인데 다른가?”라는 질문을 만든다."],
             ["검증","KASS·통계청·관세청 자료의 연도, 단위, 식량용·사료용 범위를 구분한다."],
-            ["위기","호주 가뭄, 환율 상승, 운송 차질, 국내 태풍 중 한 사건이 공급망을 흔든다."],
-            ["선택","100포인트 안에서 직불제·비축·다변화·기술·수요 정책의 우선순위를 정한다."],
-            ["성찰","점수보다 중요한 상충관계를 해석하고 내 전공의 언어로 개선안을 제안한다."],
+            ["위기","무작위 기후·금융·물류 위기 카드가 기존 공급망의 약점을 드러낸다."],
+            ["선택","대응역량 8 안에서 정책 카드 최대 3장을 고르고 시너지와 부작용을 감수한다."],
+            ["성찰","KPI·HHI·비용효과를 해석하고 내 전공의 분석도구로 후속 전략을 제안한다."],
           ].map(([title,text],i)=><article key={title}><span>{String(i+1).padStart(2,"0")}</span><b>{title}</b><p>{text}</p></article>)}
         </div>
         <div className="game-structure">
-          <div><small>플레이어</small><b>2035 식량안보 전략팀</b><p>글로벌 조달·기업기획·농업경제·농촌사회 중 하나의 역할을 맡습니다.</p></div>
+          <div><small>플레이어</small><b>2035 기후·식량 전략회의</b><p>글로벌 조달·기업기획·농업경제·농촌전환 중 하나의 전문 역할을 맡습니다.</p></div>
           <div><small>갈등</small><b>모든 지표를 동시에 높일 수 없다</b><p>가격 안정, 공급 회복력, 농가소득, 환경 지속성 사이에서 우선순위를 선택합니다.</p></div>
-          <div><small>승리 조건</small><b>정답 대신 근거 있는 전략</b><p>100포인트를 맞추고 결과의 장점·부작용·보완책을 자료로 설명하면 탐구가 완성됩니다.</p></div>
+          <div><small>승리 조건</small><b>역할별 KPI 미션 달성</b><p>같은 카드라도 전공별 성공조건이 다릅니다. 결과의 장점·부작용·보완책을 설명해야 탐구가 완성됩니다.</p></div>
         </div>
-        <div className="narrative"><span>GAME BRIEF</span><p>“2035년, 주요 밀 수입국에 기록적 가뭄이 발생했다. 국제 밀 가격과 원/달러 환율이 동시에 오르는 가운데, 정부는 추가 식량안보 예산 100포인트를 편성했다. 당신의 팀은 국내 생산 기반과 소비자 가격, 농가소득, 탄소 부담을 함께 고려한 포트폴리오를 제출해야 한다.”</p></div>
+        <div className="narrative"><span>GAME BRIEF</span><p>“2035년 기후·식량 전략회의가 소집됐다. 위기의 종류는 아직 알 수 없고 모든 정책을 동시에 시행할 역량도 없다. 당신은 전공별 책임자로서 대응 카드 3장 이내를 선택하고, 가격·공급·농가·환경과 수입집중도 사이의 상충관계를 이사회에 설명해야 한다.”</p></div>
       </section>
 
       <section className="lab" id="lab">
-        <div className="section-head"><span>05 / 정책 예산 게임</span><h2>당신이 식량안보 전략가라면?</h2><p>정책 포인트 100을 배분하고 국제 충격에 견디는 조합을 찾아보세요.</p></div>
-        <div className="lab-grid">
-          <div className="controls">
-            <label>충격 시나리오<select value={shock} onChange={(e)=>setShock(e.target.value as ShockKey)}>{Object.entries(shocks).map(([k,v])=><option value={k} key={k}>{v.label}</option>)}</select></label>
-            {([
-              ["direct","전략작물직불제"],["reserve","공공 비축"],["diversity","수입국 다변화"],["smart","기후 스마트농업"],["demand","국산 밀 수요 창출"]
-            ] as const).map(([key,label])=><label className="slider" key={key}><span>{label}<b>{budget[key]}</b></span><input type="range" min="0" max="40" value={budget[key]} onChange={(e)=>updateBudget(key,+e.target.value)}/></label>)}
-            <div className={total === 100 ? "total ok" : "total"}>배분 합계 <strong>{total}</strong>/100 <span>{total===100?"✓ 완료":"100에 맞춰주세요"}</span></div>
-          </div>
-          <div className="results">
-            <div className="shock-note"><b>{shocks[shock].label}</b><span>{shocks[shock].note}</span></div>
-            {Object.entries({price:"가격 안정성",supply:"공급 회복력",farm:"농가소득",climate:"환경 지속성"}).map(([k,label])=><div className="score" key={k}><span>{label}</span><div><i style={{width:`${scores[k as keyof typeof scores]}%`}}/></div><b>{scores[k as keyof typeof scores]}</b></div>)}
-            <p className="interpretation">{scores.supply >= 65 ? "공급 회복력은 양호합니다." : "공급 충격을 버틸 비축·조달 다변화가 더 필요합니다."} {scores.farm > scores.price + 15 ? "농가 지원에 비해 소비자 가격 안정 대책이 부족할 수 있습니다." : "생산자와 소비자 지표의 균형을 점검했습니다."}</p>
-            <small>점수는 정책 간 상충관계를 학습하기 위한 상대지수이며 실제 정책 효과 예측이 아닙니다.</small>
-          </div>
+        <div className="section-head"><span>05 / CLIMATE SUPPLY CHAIN GAME</span><h2>2035 기후·식량 전략회의</h2><p>정답을 맞히는 게임이 아닙니다. 전공 역할을 맡고, 위기 카드를 뽑은 뒤 대응역량 8 안에서 정책 카드 최대 3장을 선택하세요.</p></div>
+
+        <div className="game-progress">
+          <span className="done">01 역할 선택</span><span className={crisis?"done":""}>02 위기 공개</span><span className={selected.length?"done":""}>03 전략 구성</span><span className={resolved?"done":""}>04 결과 감사</span>
         </div>
+
+        <div className="role-select">
+          {gameRoles.map((role,i)=><button key={role.name} className={gameRole===i?"active":""} onClick={()=>{setGameRole(i);setResolved(false)}} aria-pressed={gameRole===i}>
+            <small>{role.major}</small><b>{role.name}</b><span>{role.mission}</span>
+          </button>)}
+        </div>
+
+        <div className="crisis-console">
+          <div>
+            <small>MISSION</small>
+            <b>{gameRoles[gameRole].mission}</b>
+            <span>같은 위기라도 전공에 따라 성공조건이 달라집니다.</span>
+          </div>
+          <div className={crisis?"crisis-reveal":"crisis-reveal waiting"}>
+            {crisis ? <><small>{crisis.tag}</small><b>{crisis.label}</b><span>{crisis.note}</span></> : <><small>CLASSIFIED</small><b>아직 공개되지 않은 위기</b><span>기후·금융·물류·국내 생산 중 하나가 발생합니다.</span></>}
+          </div>
+          <button className="draw-button" onClick={drawCrisis}>{crisis?"위기 카드 다시 뽑기":"위기 카드 뽑기"}</button>
+        </div>
+
+        <div className="command-grid">
+          <div>
+            <div className="deck-head"><div><small>POLICY DECK</small><h3>대응 카드 선택</h3></div><div className="capacity"><span>사용 역량</span><strong>{usedCapacity}/8</strong><small>남겨도 됩니다 · 최대 3장</small></div></div>
+            <div className="policy-deck">
+              {policyCards.map(card=>{
+                const chosen=selected.includes(card.id);
+                const locked=!chosen&&(selected.length>=3||usedCapacity+card.cost>8);
+                return <button key={card.id} className={chosen?"policy-card chosen":"policy-card"} disabled={!crisis||locked} onClick={()=>togglePolicy(card.id)} aria-pressed={chosen}>
+                  <span className="card-top"><small>{card.type}</small><i>{card.cost} 역량</i></span>
+                  <b>{card.title}</b><p>{card.detail}</p>
+                  <span className="effect">공급 {card.effects.supply>=0?"+":""}{card.effects.supply} · 가격 {card.effects.price>=0?"+":""}{card.effects.price}</span>
+                  <span className="downside">↳ {card.downside}</span>
+                </button>
+              })}
+            </div>
+          </div>
+
+          <aside className="strategy-audit">
+            <small>DECISION AUDIT</small><h3>전략 감사실</h3>
+            <div className="audit-line"><span>선택 카드</span><b>{selected.length}/3</b></div>
+            <div className="audit-line"><span>비상 여력</span><b>{8-usedCapacity}</b></div>
+            <div className="audit-line"><span>예상 시너지</span><b>{synergy?.name??"없음"}</b></div>
+            <div className="audit-line"><span>현재 HHI</span><b>{hhi.toLocaleString()}</b></div>
+            <p>{selected.length ? selectedCards.map(card=>card.title).join(" + ") : "위기 공개 후 대응 카드를 선택하세요."}</p>
+            <button className="submit-strategy" disabled={!crisis||selected.length===0} onClick={()=>setResolved(true)}>전략 제출 및 충격 계산</button>
+            <small>역량을 모두 쓸 필요는 없습니다. 남은 역량은 다음 위기에 대응할 옵션 가치로 해석됩니다.</small>
+          </aside>
+        </div>
+
+        {resolved&&crisis&&<div className="outcome">
+          <div className="outcome-title">
+            <div><small>AFTER ACTION REPORT</small><h3>{missionPassed?"미션 달성 · 회복 가능한 전략":"미션 미달 · 보완 전략 필요"}</h3></div>
+            <div className={missionPassed?"grade pass":"grade"}>{missionPassed?"PASS":"REVIEW"}</div>
+          </div>
+          <div className="outcome-grid">
+            <div className="metric-panel">
+              {Object.entries({price:"가격 안정성",supply:"공급 회복력",farm:"농가소득",climate:"환경 지속성"}).map(([k,label])=><div className="score" key={k}><span>{label}</span><div><i style={{width:`${scores[k as keyof Metrics]}%`}}/></div><b>{scores[k as keyof Metrics]}</b></div>)}
+            </div>
+            <div className="professional-panel">
+              <div><small>수입집중도 HHI</small><strong>{hhi.toLocaleString()}</strong><span>{hhi>=2500?"고집중 구조":"집중위험 완화"}</span></div>
+              <div><small>정책 결합효과</small><strong>{synergy?.name??"시너지 없음"}</strong><span>{synergy?"카드 결합 보너스 반영":"개별 정책효과만 반영"}</span></div>
+              <div><small>숨은 비용</small><p>{selectedCards.map(card=>card.downside).join(" · ")}</p></div>
+            </div>
+          </div>
+          <div className="career-followup"><div><small>NEXT CAREER QUEST · {gameRoles[gameRole].major}</small><b>{gameRoles[gameRole].follow}</b></div><button onClick={async()=>{await navigator.clipboard.writeText(reportText);setCopied(true)}}>{copied?"탐구 기록 복사됨 ✓":"탐구 기록 복사"}</button></div>
+          <p className="model-note">HHI는 2023년 밀 수입국 비중으로 계산한 교육용 집중도 지표입니다. KPI와 카드 효과는 정책의 상충관계를 학습하기 위한 모형이며 실제 가격·정책 효과 예측이 아닙니다.</p>
+        </div>}
       </section>
 
       <section className="section policy">
@@ -165,17 +290,22 @@ export default function Home() {
       </section>
 
       <section className="career" id="career">
-        <div className="section-head"><span>07 / 지속 가능한 진로</span><h2>같은 문제를 네 전공의 언어로</h2><p>기후위기를 ‘환경 문제’에만 머물지 않고 공급망·기업·정책·사회 선택의 문제로 확장합니다.</p></div>
+        <div className="section-head"><span>07 / 기후변화와 지속 가능한 진로</span><h2>전공은 직업 이름이 아니라 질문의 방식이다</h2><p>같은 기후충격도 글로벌경영은 조달위험, 경영학은 원가와 고객, 식품자원경제학은 사회적 편익, 농경제사회학은 형평성과 현장 수용성으로 해석합니다.</p></div>
         <div className="career-tabs">{careers.map((c,i)=><button className={career===i?"active":""} onClick={()=>setCareer(i)} key={c.name}>{c.name}</button>)}</div>
         <div className="career-card">
           <span>나의 역할</span><h3>{careers[career].role}</h3>
           <div><b>탐구 질문</b><p>{careers[career].question}</p></div>
           <div><b>후속 산출물</b><p>{careers[career].output}</p></div>
         </div>
+        <div className="career-toolkit">
+          <div><small>ANALYTIC TOOL</small><b>{careers[career].tool}</b><p>감상이 아니라 전공의 지표와 분석도구로 문제를 설명합니다.</p></div>
+          <div><small>ORIGINAL FOLLOW-UP</small><b>{careers[career].project}</b><p>게임 결과에서 생긴 의문을 개인 조사·계산·인터뷰로 확장합니다.</p></div>
+          <div><small>STUDENT RECORD KEYWORD</small><b>{careers[career].keyword}</b><p>수치 선택과 실제 산출물을 함께 남겨 진로 연계의 근거를 만듭니다.</p></div>
+        </div>
         <div className="record">
-          <b>생기부 연결 문장 예시</b>
-          <p>“쌀과 밀의 2023년 식량자급률 및 밀 수입국 집중도를 비교하고, 기후 충격이 환율·운임·기업 원가를 거쳐 소비자가격에 전달되는 시차를 분석함. 정책 예산 시뮬레이션을 설계하여 자급률 확대와 재정부담, 농가소득과 소비자 후생 간 상충관계를 탐구하고, 지속 가능한 글로벌 공급망 전략을 제안함.”</p>
-          <small>그대로 복사하기보다 본인이 선택한 시나리오·수치·결론을 넣어 개인화하세요.</small>
+          <b>플레이 로그를 탐구의 증거로</b>
+          <p>“기후 충격이 생산량 감소에서 국제가격·환율·기업 원가·소비자 가격으로 전이되는 경로를 분석함. 선택한 정책 카드의 결합효과와 숨은 비용을 비교하고, {careers[career].name} 관점에서 성과 KPI와 실행 가능한 보완전략을 설계함.”</p>
+          <small>실제 위기 카드, 선택 정책, 감수한 상충관계, 후속 산출물을 넣어 본인의 탐구 과정으로 바꾸세요.</small>
         </div>
       </section>
 
