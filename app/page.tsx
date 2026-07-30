@@ -58,20 +58,19 @@ const policyCards: Array<{id:string; type:string; title:string; cost:number; det
   {id:"hedge",type:"금융 전략",title:"환율 헤지",cost:2,detail:"선물환 계약으로 원화 수입원가의 변동폭을 제한합니다.",downside:"환율 하락 시 헤지 비용 발생",effects:{price:17,supply:2,farm:0,climate:0},hhi:0},
   {id:"contract",type:"국내 기반",title:"국산 밀 계약재배",cost:3,detail:"기업과 농가의 사전계약으로 판로와 생산량을 함께 안정시킵니다.",downside:"단기 소비자가격·재정 부담",effects:{price:-4,supply:13,farm:21,climate:5},hhi:-120},
   {id:"smart",type:"기후 적응",title:"기후스마트 재배",cost:3,detail:"내재해 품종·정밀관수·생육예측으로 기후변동에 대한 생산 회복력을 높입니다.",downside:"초기 투자와 데이터 격차",effects:{price:1,supply:11,farm:8,climate:20},hhi:0},
-  {id:"demand",type:"시장 형성",title:"국산 밀 수요계약",cost:2,detail:"학교급식·식품기업 장기구매로 생산 확대가 재고로 남는 위험을 줄입니다.",downside:"수요 예측 실패 시 재고 위험",effects:{price:-3,supply:7,farm:15,climate:5},hhi:0},
-  {id:"logistics",type:"물류 전략",title:"항만·물류 이중화",cost:2,detail:"대체 항만과 안전재고 거점을 확보해 운송 중단 시간을 단축합니다.",downside:"중복 인프라의 고정비",effects:{price:7,supply:15,farm:0,climate:-2},hhi:-80},
   {id:"insurance",type:"지역 회복",title:"기후보험·공동영농",cost:2,detail:"재해손실을 분산하고 공동기계화로 고령농의 생산 지속성을 보완합니다.",downside:"보험료와 도덕적 해이 관리",effects:{price:0,supply:5,farm:18,climate:9},hhi:0},
 ];
 
 const gameRoles = [
   {name:"글로벌 공급망 책임자",major:"글로벌경영",mission:"공급 회복력 70 이상 + HHI 3,000 미만",check:(m:Metrics,hhi:number)=>m.supply>=70&&hhi<3000,follow:"기후권이 다른 국가를 묶은 밀 조달 포트폴리오와 환율 헤지안을 작성한다."},
-  {name:"식품기업 전략기획자",major:"경영학",mission:"가격 안정성 70 이상 + 국내 가치사슬 카드 포함",check:(m:Metrics,_hhi:number,ids:string[])=>m.price>=70&&(ids.includes("contract")||ids.includes("demand")),follow:"국산 밀 제품의 원가·판매가격·브랜드 프리미엄을 비교한 사업모델을 만든다."},
+  {name:"식품기업 전략기획자",major:"경영학",mission:"가격 안정성 65 이상 + 계약재배 카드 포함",check:(m:Metrics,_hhi:number,ids:string[])=>m.price>=65&&ids.includes("contract"),follow:"국산 밀 제품의 원가·판매가격·브랜드 프리미엄을 비교한 사업모델을 만든다."},
   {name:"농업경제 정책분석가",major:"식품자원경제학",mission:"네 KPI 모두 58 이상 + 대응비용 7 이하",check:(m:Metrics,_hhi:number,_ids:string[],cost:number)=>Object.values(m).every(v=>v>=58)&&cost<=7,follow:"선택 정책의 비용 1단위당 KPI 개선폭을 계산해 비용–효과성을 평가한다."},
   {name:"농촌 전환 설계자",major:"농경제사회학",mission:"농가소득 70 이상 + 환경 지속성 65 이상",check:(m:Metrics)=>m.farm>=70&&m.climate>=65,follow:"고령농·청년농·소비자에게 정책 편익과 부담이 어떻게 배분되는지 조사한다."},
 ];
 
 export default function Home() {
   const [career, setCareer] = useState(0);
+  const [gameStep, setGameStep] = useState(0);
   const [gameRole, setGameRole] = useState(0);
   const [crisis, setCrisis] = useState<(typeof crisisCards)[number] | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -79,15 +78,15 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const selectedCards = policyCards.filter(card => selected.includes(card.id));
   const usedCapacity = selectedCards.reduce((sum, card) => sum + card.cost, 0);
-  const synergy = selected.includes("diversify") && selected.includes("hedge")
+  const synergy = selected.includes("reserve") && selected.includes("diversify")
+    ? {name:"시간 벌기",effects:{price:7,supply:8,farm:0,climate:-1}}
+    : selected.includes("diversify") && selected.includes("hedge")
     ? {name:"글로벌 리스크 헤지",effects:{price:8,supply:5,farm:0,climate:0}}
-    : selected.includes("contract") && selected.includes("demand")
-      ? {name:"국산 밀 가치사슬",effects:{price:0,supply:8,farm:12,climate:4}}
+    : selected.includes("contract") && selected.includes("smart")
+      ? {name:"국내 전환 투자",effects:{price:0,supply:8,farm:10,climate:7}}
       : selected.includes("smart") && selected.includes("insurance")
-        ? {name:"기후 적응 패키지",effects:{price:0,supply:5,farm:8,climate:9}}
-        : selected.includes("reserve") && selected.includes("logistics")
-          ? {name:"재고–물류 연계",effects:{price:5,supply:9,farm:0,climate:-1}}
-          : null;
+        ? {name:"공정한 기후 적응",effects:{price:0,supply:5,farm:8,climate:9}}
+        : null;
   const scores = useMemo<Metrics>(() => {
     const base: Metrics = {price:62,supply:58,farm:54,climate:55};
     const impact = crisis?.impact ?? {price:0,supply:0,farm:0,climate:0};
@@ -115,6 +114,17 @@ export default function Home() {
     setSelected([]);
     setResolved(false);
     setCopied(false);
+  };
+  const resetGame = () => {
+    setGameStep(0);
+    setCrisis(null);
+    setSelected([]);
+    setResolved(false);
+    setCopied(false);
+  };
+  const nextStage = () => {
+    if (gameStep===3) setResolved(true);
+    setGameStep(step=>Math.min(4,step+1));
   };
   const togglePolicy = (id:string) => {
     setResolved(false);
@@ -207,77 +217,71 @@ export default function Home() {
       </section>
 
       <section className="lab" id="lab">
-        <div className="section-head"><span>05 / CLIMATE SUPPLY CHAIN GAME</span><h2>2035 기후·식량 전략회의</h2><p>정답을 맞히는 게임이 아닙니다. 전공 역할을 맡고, 위기 카드를 뽑은 뒤 대응역량 8 안에서 정책 카드 최대 3장을 선택하세요.</p></div>
+        <div className="section-head"><span>05 / HORIZONTAL STORY GAME</span><h2>한 장면에, 한 가지 선택만</h2><p>자료를 읽는 화면과 플레이 화면을 분리했습니다. 아래 게임은 브리핑부터 결과까지 다섯 장면을 좌우로 넘기며 진행합니다.</p></div>
 
-        <div className="game-progress">
-          <span className="done">01 역할 선택</span><span className={crisis?"done":""}>02 위기 공개</span><span className={selected.length?"done":""}>03 전략 구성</span><span className={resolved?"done":""}>04 결과 감사</span>
+        <div className="game-purpose">
+          <span>WHY THIS GAME?</span>
+          <h3>기후변화가 만든 공급망의 약한 고리를 찾아 끊는 것</h3>
+          <p>통계는 위험의 크기를 보여주지만, 실제 식량안보는 무엇을 먼저 지키고 어떤 비용을 감수할지 선택하는 문제입니다. 게임에서 내린 결정은 마지막에 진로 후속 탐구로 바뀝니다.</p>
         </div>
 
-        <div className="role-select">
-          {gameRoles.map((role,i)=><button key={role.name} className={gameRole===i?"active":""} onClick={()=>{setGameRole(i);setResolved(false)}} aria-pressed={gameRole===i}>
-            <small>{role.major}</small><b>{role.name}</b><span>{role.mission}</span>
-          </button>)}
+        <div className="game-shell">
+          <div className="game-hud">
+            <b>2035 FOOD SECURITY</b>
+            <div><span>ROLE <strong>{gameStep>0?gameRoles[gameRole].major:"미선택"}</strong></span><span>CRISIS <strong>{crisis?.label??"미공개"}</strong></span><span>CARDS <strong>{selected.length}/3</strong></span></div>
+          </div>
+          <div className="game-progress">
+            {["브리핑","역할","위기","대응","결과"].map((label,i)=><span key={label} className={gameStep===i?"active":gameStep>i?"done":""}>{String(i+1).padStart(2,"0")} {label}</span>)}
+          </div>
+
+          <div className="stage-viewport">
+            {gameStep===0&&<div className="game-stage briefing-stage">
+              <div className="stage-kicker">MISSION BRIEFING</div>
+              <h3>당신의 목표는<br/><em>모든 점수를 높이는 것</em>이 아니다</h3>
+              <p>제한된 대응역량으로 단기 가격, 장기 공급, 농가소득, 기후 적응 사이의 우선순위를 정하고 그 선택을 전공의 언어로 방어하세요.</p>
+              <div className="brief-objectives"><div><b>읽기</b><span>위기가 어디에서 시작됐는가</span></div><div><b>선택</b><span>무엇을 지키고 무엇을 감수할 것인가</span></div><div><b>남기기</b><span>결정을 진로 탐구로 어떻게 확장할 것인가</span></div></div>
+              <button className="hero-game-button" onClick={()=>setGameStep(1)}>임무 수락 →</button>
+            </div>}
+
+            {gameStep===1&&<div className="game-stage">
+              <div className="stage-kicker">STAGE 01 · ROLE</div><h3>어떤 전문가로 판단할까요?</h3><p className="stage-copy">전공을 고르면 성공조건이 달라집니다. 직업명이 아니라 ‘문제를 보는 방식’을 선택하세요.</p>
+              <div className="role-select stage-role-select">
+                {gameRoles.map((role,i)=><button key={role.name} className={gameRole===i?"active":""} onClick={()=>{setGameRole(i);setResolved(false)}} aria-pressed={gameRole===i}><small>{role.major}</small><b>{role.name}</b><span>{role.mission}</span></button>)}
+              </div>
+              <div className="stage-nav"><button onClick={()=>setGameStep(0)}>← 브리핑</button><button className="next" onClick={nextStage}>역할 확정 →</button></div>
+            </div>}
+
+            {gameStep===2&&<div className="game-stage crisis-stage">
+              <div className="stage-kicker">STAGE 02 · CRISIS</div><h3>기후위기는 혼자 오지 않습니다</h3><p className="stage-copy">카드를 뒤집어 이번 라운드의 공급망 충격을 확인하세요.</p>
+              <div className={crisis?"big-crisis-card revealed":"big-crisis-card"}>
+                {crisis?<><small>{crisis.tag}</small><b>{crisis.label}</b><p>{crisis.note}</p></>:<><small>CLASSIFIED EVENT</small><b>?</b><p>기후·금융·물류·국내 생산 중 하나의 위기</p></>}
+              </div>
+              <button className="draw-button stage-draw" onClick={drawCrisis}>{crisis?"다른 위기 뽑기":"위기 카드 뒤집기"}</button>
+              <div className="stage-nav"><button onClick={()=>setGameStep(1)}>← 역할</button><button className="next" disabled={!crisis} onClick={nextStage}>대응 회의로 →</button></div>
+            </div>}
+
+            {gameStep===3&&<div className="game-stage">
+              <div className="stage-kicker">STAGE 03 · RESPONSE</div>
+              <div className="deck-head"><div><h3>대응 카드 최대 3장을 고르세요</h3><p className="stage-copy">카드를 옆으로 넘겨 비교하세요. 역량을 전부 쓰지 않아도 됩니다.</p></div><div className="capacity"><span>대응역량</span><strong>{usedCapacity}/8</strong><small>{synergy?`${synergy.name} 발동`:"카드 조합을 탐색하세요"}</small></div></div>
+              <div className="policy-deck horizontal-deck">
+                {policyCards.map(card=>{const chosen=selected.includes(card.id);const locked=!chosen&&(selected.length>=3||usedCapacity+card.cost>8);return <button key={card.id} className={chosen?"policy-card chosen":"policy-card"} disabled={locked} onClick={()=>togglePolicy(card.id)} aria-pressed={chosen}><span className="card-top"><small>{card.type}</small><i>{card.cost} 역량</i></span><b>{card.title}</b><p>{card.detail}</p><span className="effect">공급 {card.effects.supply>=0?"+":""}{card.effects.supply} · 가격 {card.effects.price>=0?"+":""}{card.effects.price}</span><span className="downside">대가 · {card.downside}</span></button>})}
+              </div>
+              <div className="selected-tray"><span>선택한 전략</span><b>{selected.length?selectedCards.map(card=>card.title).join(" + "):"아직 선택하지 않음"}</b></div>
+              <div className="stage-nav"><button onClick={()=>setGameStep(2)}>← 위기</button><button className="next" disabled={!selected.length} onClick={nextStage}>전략 제출 →</button></div>
+            </div>}
+
+            {gameStep===4&&resolved&&crisis&&<div className="game-stage result-stage">
+              <div className="outcome-title"><div><small>STAGE 04 · AFTER ACTION REPORT</small><h3>{missionPassed?"미션 달성 · 전략이 위기를 견뎠습니다":"미션 미달 · 한 번 더 설계해 보세요"}</h3></div><div className={missionPassed?"grade pass":"grade"}>{missionPassed?"PASS":"REVIEW"}</div></div>
+              <div className="outcome-grid">
+                <div className="metric-panel">{Object.entries({price:"가격 안정성",supply:"공급 회복력",farm:"농가소득",climate:"환경 지속성"}).map(([k,label])=><div className="score" key={k}><span>{label}</span><div><i style={{width:`${scores[k as keyof Metrics]}%`}}/></div><b>{scores[k as keyof Metrics]}</b></div>)}</div>
+                <div className="professional-panel"><div><small>수입집중도</small><strong>{hhi.toLocaleString()}</strong><span>HHI {hhi>=2500?"고집중":"완화"} · 숫자가 높을수록 특정 국가 의존이 큼</span></div><div><small>발동한 시너지</small><strong>{synergy?.name??"없음"}</strong><span>{synergy?"정책의 시간·대상이 연결됨":"카드 조합을 바꾸면 추가효과 가능"}</span></div><div><small>감수한 대가</small><p>{selectedCards.map(card=>card.downside).join(" · ")}</p></div></div>
+              </div>
+              <div className="career-followup"><div><small>NEXT CAREER QUEST · {gameRoles[gameRole].major}</small><b>{gameRoles[gameRole].follow}</b></div><button onClick={async()=>{await navigator.clipboard.writeText(reportText);setCopied(true)}}>{copied?"탐구 기록 복사됨 ✓":"탐구 기록 복사"}</button></div>
+              <div className="stage-nav result-nav"><button onClick={()=>{setResolved(false);setGameStep(3)}}>← 전략 수정</button><button className="next" onClick={resetGame}>새 게임 시작 ↻</button></div>
+              <p className="model-note">HHI와 KPI는 정책의 상충관계를 학습하기 위한 교육용 모형이며 실제 가격이나 정책효과를 예측하지 않습니다.</p>
+            </div>}
+          </div>
         </div>
-
-        <div className="crisis-console">
-          <div>
-            <small>MISSION</small>
-            <b>{gameRoles[gameRole].mission}</b>
-            <span>같은 위기라도 전공에 따라 성공조건이 달라집니다.</span>
-          </div>
-          <div className={crisis?"crisis-reveal":"crisis-reveal waiting"}>
-            {crisis ? <><small>{crisis.tag}</small><b>{crisis.label}</b><span>{crisis.note}</span></> : <><small>CLASSIFIED</small><b>아직 공개되지 않은 위기</b><span>기후·금융·물류·국내 생산 중 하나가 발생합니다.</span></>}
-          </div>
-          <button className="draw-button" onClick={drawCrisis}>{crisis?"위기 카드 다시 뽑기":"위기 카드 뽑기"}</button>
-        </div>
-
-        <div className="command-grid">
-          <div>
-            <div className="deck-head"><div><small>POLICY DECK</small><h3>대응 카드 선택</h3></div><div className="capacity"><span>사용 역량</span><strong>{usedCapacity}/8</strong><small>남겨도 됩니다 · 최대 3장</small></div></div>
-            <div className="policy-deck">
-              {policyCards.map(card=>{
-                const chosen=selected.includes(card.id);
-                const locked=!chosen&&(selected.length>=3||usedCapacity+card.cost>8);
-                return <button key={card.id} className={chosen?"policy-card chosen":"policy-card"} disabled={!crisis||locked} onClick={()=>togglePolicy(card.id)} aria-pressed={chosen}>
-                  <span className="card-top"><small>{card.type}</small><i>{card.cost} 역량</i></span>
-                  <b>{card.title}</b><p>{card.detail}</p>
-                  <span className="effect">공급 {card.effects.supply>=0?"+":""}{card.effects.supply} · 가격 {card.effects.price>=0?"+":""}{card.effects.price}</span>
-                  <span className="downside">↳ {card.downside}</span>
-                </button>
-              })}
-            </div>
-          </div>
-
-          <aside className="strategy-audit">
-            <small>DECISION AUDIT</small><h3>전략 감사실</h3>
-            <div className="audit-line"><span>선택 카드</span><b>{selected.length}/3</b></div>
-            <div className="audit-line"><span>비상 여력</span><b>{8-usedCapacity}</b></div>
-            <div className="audit-line"><span>예상 시너지</span><b>{synergy?.name??"없음"}</b></div>
-            <div className="audit-line"><span>현재 HHI</span><b>{hhi.toLocaleString()}</b></div>
-            <p>{selected.length ? selectedCards.map(card=>card.title).join(" + ") : "위기 공개 후 대응 카드를 선택하세요."}</p>
-            <button className="submit-strategy" disabled={!crisis||selected.length===0} onClick={()=>setResolved(true)}>전략 제출 및 충격 계산</button>
-            <small>역량을 모두 쓸 필요는 없습니다. 남은 역량은 다음 위기에 대응할 옵션 가치로 해석됩니다.</small>
-          </aside>
-        </div>
-
-        {resolved&&crisis&&<div className="outcome">
-          <div className="outcome-title">
-            <div><small>AFTER ACTION REPORT</small><h3>{missionPassed?"미션 달성 · 회복 가능한 전략":"미션 미달 · 보완 전략 필요"}</h3></div>
-            <div className={missionPassed?"grade pass":"grade"}>{missionPassed?"PASS":"REVIEW"}</div>
-          </div>
-          <div className="outcome-grid">
-            <div className="metric-panel">
-              {Object.entries({price:"가격 안정성",supply:"공급 회복력",farm:"농가소득",climate:"환경 지속성"}).map(([k,label])=><div className="score" key={k}><span>{label}</span><div><i style={{width:`${scores[k as keyof Metrics]}%`}}/></div><b>{scores[k as keyof Metrics]}</b></div>)}
-            </div>
-            <div className="professional-panel">
-              <div><small>수입집중도 HHI</small><strong>{hhi.toLocaleString()}</strong><span>{hhi>=2500?"고집중 구조":"집중위험 완화"}</span></div>
-              <div><small>정책 결합효과</small><strong>{synergy?.name??"시너지 없음"}</strong><span>{synergy?"카드 결합 보너스 반영":"개별 정책효과만 반영"}</span></div>
-              <div><small>숨은 비용</small><p>{selectedCards.map(card=>card.downside).join(" · ")}</p></div>
-            </div>
-          </div>
-          <div className="career-followup"><div><small>NEXT CAREER QUEST · {gameRoles[gameRole].major}</small><b>{gameRoles[gameRole].follow}</b></div><button onClick={async()=>{await navigator.clipboard.writeText(reportText);setCopied(true)}}>{copied?"탐구 기록 복사됨 ✓":"탐구 기록 복사"}</button></div>
-          <p className="model-note">HHI는 2023년 밀 수입국 비중으로 계산한 교육용 집중도 지표입니다. KPI와 카드 효과는 정책의 상충관계를 학습하기 위한 모형이며 실제 가격·정책 효과 예측이 아닙니다.</p>
-        </div>}
       </section>
 
       <section className="section policy">
